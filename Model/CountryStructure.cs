@@ -12,6 +12,7 @@ namespace Utils.Model
         public string PostalCodeValidationRule { get; set; }
         public string NeedsState { get; set; }
         public string PrefixRegex { get; set; }
+        public string DefaultCurrency { get; set; }
         public string CountryGuid { get; set; }
         public bool IsEU { get; set; }
     }

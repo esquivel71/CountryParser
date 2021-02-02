@@ -1,6 +1,7 @@
 ﻿using ExcelDataReader;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -27,7 +28,7 @@ namespace Utils
                      "END CATCH");
 
         public static string sqlCountryCommand = new string("INSERT profilesection.Countries(country_id, name, country_short_code, postal_code_validation_rule, " +
-            "needs_state, prefix_regex, created_at, created_by, updated_at, updated_by) VALUES (N'{0}', N'{1}', N'{2}', N'{3}', N'{4}', N'{5}', " +
+            "needs_state, prefix_regex, default_currency, created_at, created_by, updated_at, updated_by) VALUES (N'{0}', N'{1}', N'{2}', N'{3}', N'{4}', N'{5}', N'{6}', " +
             "GETDATE(), @username, GETDATE(), @username)");
 
         public static string sqlStateCommand = new string("INSERT INTO profilesection.country_states (country_id, state, state_code_1, state_code_2, " +
@@ -48,11 +49,60 @@ namespace Utils
 
         private static void Main(string[] args)
         {
+            FillCurrencyToFile();
+
             
             CreateCountryScript();
             CreateStatesScript();
             CreateEUCountriesJSON();
             CreateWhiteListCountryFiles();
+        }
+
+        private static void FillCurrencyToFile()
+        {
+            FileInfo eviews = new FileInfo(@"Resources\CountriesforParcelFedex.xlsx");
+
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+            using (ExcelPackage countriesFile = new ExcelPackage(eviews))
+            {
+
+                ExcelWorksheet countryCurrencies = countriesFile.Workbook.Worksheets[4];
+
+                var start = countryCurrencies.Dimension.Start;
+                var end = countryCurrencies.Dimension.End;
+
+                Dictionary<string, string> countryCurrency = new Dictionary<string, string>();
+
+                for (int i = 2; i < end.Row + 1; i++)
+                {
+                    countryCurrency[countryCurrencies.Cells[i, 1].Value?.ToString().ToLowerInvariant().Replace(" ","")] = countryCurrencies.Cells[i, 2].Value?.ToString();
+                }
+
+                ExcelWorksheet countriesWS = countriesFile.Workbook.Worksheets[0];
+
+                for (int i = 2; ; i++)
+                {
+                    string mxCountryName = countriesWS.Cells[i, 1].Value?.ToString().ToLowerInvariant().Replace(" ", "");
+                    if (mxCountryName == default) break;
+                    if (countryCurrency.ContainsKey(mxCountryName))
+                        countriesWS.Cells[i, 8].Value = countryCurrency[mxCountryName].ToString();
+                    else
+                    {
+                        foreach (string country2 in countryCurrency.Keys)
+                        {
+                            if (country2.Contains(mxCountryName) || mxCountryName.Contains(country2))
+                            {
+                                countriesWS.Cells[i, 8].Value = countryCurrency[country2].ToString();
+                                break;
+                            }
+                        }
+                    }
+                    
+                }
+
+                countriesFile.Save();
+            }
         }
 
         public static void CreateCountryScript()
@@ -91,7 +141,7 @@ namespace Utils
                 country.PostalCodeValidationRule = "{\"Regex\":\"" + country.PostalCodeValidationRule + "\"} ";
                 country.PostalCodeValidationRule = country.PostalCodeValidationRule.Replace("\\", "\\\\");
 
-                sqlcommands.Add(String.Format(sqlCountryCommand, country.CountryGuid, country.Name, country.CountryShortCode, country.PostalCodeValidationRule, country.NeedsState, country.PrefixRegex));
+                sqlcommands.Add(String.Format(sqlCountryCommand, country.CountryGuid, country.Name, country.CountryShortCode, country.PostalCodeValidationRule, country.NeedsState, country.PrefixRegex, country.DefaultCurrency));
             }
 
             //write to file
@@ -137,6 +187,9 @@ namespace Utils
                                     CountryShortCode = data_table.Rows[i][2].ToString(),
                                     CountryGuid = data_table_Guids.Rows[i-1][0].ToString()
                                 };
+
+                                countryToInsert.DefaultCurrency = data_table.Rows[i][7].ToString();
+
                                 if (data_table.Rows[i][5].ToString().Contains("YES"))
                                     countryToInsert.NeedsState = "1";
                                 else
