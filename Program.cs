@@ -52,6 +52,7 @@ namespace Utils
             CreateCountryScript();
             CreateStatesScript();
             CreateEUCountriesJSON();
+            CreateWhiteListCountryFiles();
         }
 
         public static void CreateCountryScript()
@@ -285,6 +286,11 @@ namespace Utils
                 tw.WriteLine(json.ToString());
                 tw.Close();
             }
+        }
+
+        private static void CreateWhiteListCountryFiles ()
+        {
+            
         }
     }
 }
