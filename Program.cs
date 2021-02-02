@@ -48,8 +48,7 @@ namespace Utils
         public static List<string> sqlcommands = new List<string>();
 
         private static void Main(string[] args)
-        {
-            FillCurrencyToFile();
+        {            //FillCurrencyToFile();
 
             
             CreateCountryScript();
